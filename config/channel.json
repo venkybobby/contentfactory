@@ -1,0 +1,24 @@
+{
+  "channel_name": "The AI Confession",
+  "tagline": "Real Stories. Real Evidence. Real Lessons.",
+  "mission": "Investigate how artificial intelligence changes human lives without hype or fear, using evidence.",
+  "host": {
+    "name": "Venky",
+    "tone": ["calm", "confident", "investigative", "professional", "empathetic"],
+    "reference_asset_required": true
+  },
+  "visual_style": {
+    "keywords": ["premium investigative documentary", "dark luxury", "photorealistic", "soft lighting", "shallow depth of field", "subtle film grain"],
+    "color": ["high contrast", "blue shadows", "warm skin tones", "soft highlights"],
+    "forbidden": ["cartoon", "unmotivated futuristic CGI", "flashy transitions", "fabricated evidence"]
+  },
+  "episode_structure": ["cold_open", "background", "conflict", "investigation", "technical_breakdown", "human_impact", "venkys_verdict", "closing"],
+  "editorial_rules": [
+    "Distinguish verified fact, allegation, analysis, and reconstruction.",
+    "Every factual claim must reference an evidence-ledger item.",
+    "Never dramatize beyond what the evidence supports.",
+    "Explain technology in plain language.",
+    "Keep a human approval gate before script lock, render, and publish."
+  ]
+}
+
