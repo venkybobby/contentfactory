@@ -33,7 +33,12 @@ def source_excerpts(urls: list[str]) -> list[dict[str, str]]:
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme != "https" or not parsed.hostname:
             raise ValueError("Source URLs must use HTTPS")
-        addresses = socket.getaddrinfo(parsed.hostname, 443, type=socket.SOCK_STREAM)
+        try:
+            addresses = socket.getaddrinfo(parsed.hostname, 443, type=socket.SOCK_STREAM)
+        except socket.gaierror as exc:
+            excerpts.append({"source_id": f"S{index:03}", "url": url, "title": url,
+                             "excerpt": f"DNS resolution failed: {exc}. Human review required."})
+            continue
         for address in addresses:
             ip = ipaddress.ip_address(address[4][0])
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:

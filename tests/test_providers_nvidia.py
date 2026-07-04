@@ -1,4 +1,5 @@
 import pytest
+import socket
 
 from content_factory.providers import NvidiaEditorialProvider, editorial_provider, source_excerpts
 
@@ -18,3 +19,11 @@ def test_provider_factory_selects_nvidia(monkeypatch):
 def test_source_fetcher_rejects_unsafe_urls(url):
     with pytest.raises(ValueError):
         source_excerpts([url])
+
+
+def test_source_fetcher_records_dns_failure(monkeypatch):
+    def fail_dns(*args, **kwargs):
+        raise socket.gaierror(-2, "Name or service not known")
+    monkeypatch.setattr("content_factory.providers.socket.getaddrinfo", fail_dns)
+    result = source_excerpts(["https://example.invalid/source"])
+    assert "DNS resolution failed" in result[0]["excerpt"]

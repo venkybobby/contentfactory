@@ -75,7 +75,7 @@ function StatusPill({ value }) {
   return <span className={`status status-${value}`}>{label}</span>
 }
 
-function EpisodeCard({ episode, selected, onSelect, onApprove }) {
+function EpisodeCard({ episode, selected, onSelect, onApprove, onRetry }) {
   const stages = episode.stages || {}
   const complete = Object.values(stages).filter(x => x === 'complete').length
   const waiting = Object.entries(stages).find(([, value]) => value === 'waiting_for_human')
@@ -87,6 +87,7 @@ function EpisodeCard({ episode, selected, onSelect, onApprove }) {
     <div className="progress"><i style={{width: `${Math.round(complete / STAGES.length * 100)}%`}} /></div>
     <div className="episode-meta"><span>{complete}/{STAGES.length} stages</span><span>{episode.provider}</span><span>{episode.case.target_minutes} min</span></div>
     {waiting && <button className="review" onClick={event => { event.stopPropagation(); onApprove(episode.case.case_id, waiting[0]) }}>Approve {waiting[0].replaceAll('_',' ')}</button>}
+    {episode.failed && <button className="review" onClick={event => { event.stopPropagation(); onRetry(episode.case.case_id) }}>Retry failed stage</button>}
   </article>
 }
 
@@ -112,6 +113,7 @@ function Dashboard({ onLogout }) {
   useEffect(() => { load(); const timer = setInterval(load, 5000); return () => clearInterval(timer) }, [selectedId])
   const created = (id) => { setNotice(`${id} accepted. Research is starting.`); setSelectedId(id); setTimeout(load, 800) }
   const approve = async (id, stage) => { if (!reviewer.trim()) { setNotice('Enter a reviewer name before approving.'); return } await api(`/api/v1/episodes/${id}/approvals/${stage}`, { method: 'POST', body: JSON.stringify({ approved_by: reviewer.trim() }) }); setNotice(`${stage.replaceAll('_',' ')} approved by ${reviewer.trim()}.`); setTimeout(load, 500) }
+  const retry = async (id) => { try { await api(`/api/v1/episodes/${id}/retry`, { method: 'POST' }); setNotice(`${id} retry started.`); setTimeout(load, 500) } catch (err) { setNotice(err.message) } }
   const logout = async () => { await api('/api/v1/auth/session', { method: 'DELETE' }); onLogout() }
   const selected = episodes.find(x => x.case.case_id === selectedId)
   return <div className="app-shell">
@@ -121,7 +123,7 @@ function Dashboard({ onLogout }) {
       {notice && <div className="notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
       <NewEpisode onCreated={created} />
       <section className="production"><div className="section-heading"><div><span className="section-number">02</span><h2>Production queue</h2></div><span>{episodes.length} case{episodes.length === 1 ? '' : 's'}</span></div>
-        <div className="production-grid"><div className="episode-list">{episodes.length ? episodes.map(item => <EpisodeCard key={item.case.case_id} episode={item} selected={item.case.case_id === selectedId} onSelect={() => setSelectedId(item.case.case_id)} onApprove={approve} />) : <div className="empty">No cases yet. Open the first case file above.</div>}</div>{selected && <EpisodeDetail episode={selected} />}</div>
+        <div className="production-grid"><div className="episode-list">{episodes.length ? episodes.map(item => <EpisodeCard key={item.case.case_id} episode={item} selected={item.case.case_id === selectedId} onSelect={() => setSelectedId(item.case.case_id)} onApprove={approve} onRetry={retry} />) : <div className="empty">No cases yet. Open the first case file above.</div>}</div>{selected && <EpisodeDetail episode={selected} />}</div>
       </section>
     </main>
     <footer><span>REAL STORIES.</span><span>REAL EVIDENCE.</span><span>REAL LESSONS.</span></footer>

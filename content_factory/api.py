@@ -97,6 +97,12 @@ def execute_episode(root: Path, spec: CaseSpec, provider: str) -> None:
         raise
 
 
+def resume_episode(root: Path, spec: CaseSpec, provider: str) -> None:
+    failure = root / "runs" / spec.case_id / "failure.json"
+    failure.unlink(missing_ok=True)
+    execute_episode(root, spec, provider)
+
+
 app = FastAPI(title="The AI Confession Content Factory", version=__version__)
 
 
@@ -180,6 +186,20 @@ async def episode_status(case_id: str) -> dict:
     if not manifest.exists():
         raise HTTPException(status_code=404, detail={"code": "EPISODE_NOT_FOUND", "message": "Unknown case_id"})
     return json.loads(manifest.read_text(encoding="utf-8"))
+
+
+@app.post("/api/v1/episodes/{case_id}/retry", status_code=202, dependencies=[Depends(authorize)])
+async def retry_episode(case_id: str, background_tasks: BackgroundTasks) -> dict[str, str]:
+    manifest_path = factory_root() / "runs" / case_id / "manifest.json"
+    failure_path = manifest_path.parent / "failure.json"
+    if not manifest_path.exists():
+        raise HTTPException(status_code=404, detail={"code": "EPISODE_NOT_FOUND", "message": "Unknown case_id"})
+    if not failure_path.exists():
+        raise HTTPException(status_code=409, detail={"code": "EPISODE_NOT_FAILED", "message": "Episode has no recorded failure"})
+    manifest = await asyncio.to_thread(lambda: json.loads(manifest_path.read_text(encoding="utf-8")))
+    spec = CaseSpec(**manifest["case"])
+    background_tasks.add_task(resume_episode, factory_root(), spec, manifest.get("provider", "demo"))
+    return {"case_id": case_id, "status": "retrying"}
 
 
 @app.post("/api/v1/episodes/{case_id}/approvals/{stage}", status_code=202, dependencies=[Depends(authorize)])
