@@ -13,7 +13,7 @@ def main() -> None:
     for name in ("init", "run"):
         command = sub.add_parser(name)
         command.add_argument("spec", type=Path)
-        command.add_argument("--provider", choices=("demo", "openai"), default="demo")
+        command.add_argument("--provider", choices=("demo", "openai", "nvidia"), default="demo")
         if name == "run":
             command.add_argument("--auto-approve", action="store_true")
             command.add_argument("--reset", action="store_true")

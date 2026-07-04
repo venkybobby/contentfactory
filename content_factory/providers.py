@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import os
+import socket
 import urllib.request
+import urllib.parse
+from html.parser import HTMLParser
 from typing import Any
 
 from .workflow import CaseSpec
@@ -10,6 +14,47 @@ from .workflow import CaseSpec
 
 SECTIONS = ("Cold Open", "Background", "Conflict", "Investigation",
             "Technical Breakdown", "Human Impact", "Venky's Verdict", "Closing")
+
+
+class _TextExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        value = " ".join(data.split())
+        if value:
+            self.parts.append(value)
+
+
+def source_excerpts(urls: list[str]) -> list[dict[str, str]]:
+    excerpts = []
+    for index, url in enumerate(urls, 1):
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != "https" or not parsed.hostname:
+            raise ValueError("Source URLs must use HTTPS")
+        addresses = socket.getaddrinfo(parsed.hostname, 443, type=socket.SOCK_STREAM)
+        for address in addresses:
+            ip = ipaddress.ip_address(address[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                raise ValueError("Source URLs cannot resolve to private or reserved networks")
+        request = urllib.request.Request(url, headers={"User-Agent": "ContentFactory/0.2 source-verifier"})
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                content_type = response.headers.get_content_type()
+                raw = response.read(500_000)
+            if content_type not in {"text/html", "text/plain", "application/xhtml+xml"}:
+                text = f"Unsupported source type: {content_type}. Human review required."
+            elif content_type == "text/html":
+                parser = _TextExtractor()
+                parser.feed(raw.decode("utf-8", errors="replace"))
+                text = " ".join(parser.parts)
+            else:
+                text = raw.decode("utf-8", errors="replace")
+        except (OSError, ValueError) as exc:
+            text = f"Source retrieval failed: {type(exc).__name__}. Human review required."
+        excerpts.append({"source_id": f"S{index:03}", "url": url, "title": url, "excerpt": text[:20_000]})
+    return excerpts
 
 
 class DemoEditorialProvider:
@@ -66,9 +111,48 @@ Use exactly these sections: {json.dumps(SECTIONS)}. Use web search to verify fac
         raise RuntimeError("OpenAI response did not contain output_text")
 
 
+class NvidiaEditorialProvider:
+    def __init__(self) -> None:
+        self.key = os.environ.get("NVIDIA_API_KEY")
+        if not self.key:
+            raise RuntimeError("NVIDIA_API_KEY is required for provider=nvidia")
+        self.model = os.environ.get("NVIDIA_MODEL", "z-ai/glm-5.2")
+        self.base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
+
+    def create_package(self, spec: CaseSpec) -> dict[str, Any]:
+        sources = source_excerpts(spec.sources or [])
+        prompt = f"""You are an evidence-first investigative documentary editor.
+Create JSON only, with keys sections, sources, and claims.
+sections must contain exactly these eight names in order: {json.dumps(SECTIONS)}.
+Each section object has section and narration. claims is an array of objects with claim_id, text, classification, and source_id.
+Use only the supplied source excerpts. Do not invent facts, quotations, people, dates, or citations. If evidence is insufficient, state that explicitly in narration.
+Case: {spec.title}
+Angle: {spec.angle}
+Target minutes: {spec.target_minutes}
+Sources: {json.dumps(sources, ensure_ascii=False)}"""
+        payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}],
+                   "temperature": 0.2, "top_p": 1, "max_tokens": 8192, "seed": 42, "stream": False}
+        request = urllib.request.Request(f"{self.base_url.rstrip('/')}/chat/completions",
+                                         data=json.dumps(payload).encode("utf-8"),
+                                         headers={"Authorization": f"Bearer {self.key}", "Content-Type": "application/json", "Accept": "application/json"})
+        with urllib.request.urlopen(request, timeout=300) as response:
+            body = json.load(response)
+        content = body["choices"][0]["message"]["content"]
+        start, end = content.find("{"), content.rfind("}")
+        if start < 0 or end <= start:
+            raise RuntimeError("NVIDIA response did not contain a JSON object")
+        package = json.loads(content[start:end + 1])
+        package["sources"] = [{k: source[k] for k in ("source_id", "url", "title")} for source in sources]
+        if len(package.get("sections", [])) != len(SECTIONS):
+            raise RuntimeError("NVIDIA response must contain exactly eight sections")
+        return package
+
+
 def editorial_provider(name: str):
     if name == "openai":
         return OpenAIEditorialProvider()
     if name == "demo":
         return DemoEditorialProvider()
+    if name == "nvidia":
+        return NvidiaEditorialProvider()
     raise ValueError(f"Unknown provider: {name}")

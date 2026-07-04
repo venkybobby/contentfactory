@@ -28,6 +28,15 @@ Production runs stop at three gates. Inspect the artifacts, then resume:
 
 Repeat for `script_approval` and `final_approval`. `--auto-approve` exists for local end-to-end testing only.
 
+NVIDIA NIM can be used instead of OpenAI. It works from supplied source URLs and does not perform independent web search:
+
+```powershell
+$env:NVIDIA_API_KEY="..."
+.\.venv\Scripts\python -m content_factory.cli run examples/courtroom.json --provider nvidia --reset
+```
+
+The default NVIDIA model is `z-ai/glm-5.2`; override it with `NVIDIA_MODEL`.
+
 ## Safety boundaries
 
 - Demo content is visibly blocked from publication.
@@ -45,7 +54,7 @@ The repository includes an explicit `Dockerfile` and `fly.toml`. Create the volu
 ```powershell
 fly volumes create contentfactory_data --region ams --size 10 --app contentfactory
 fly secrets set API_TOKEN="replace-with-a-long-random-token" --app contentfactory
-fly secrets set OPENAI_API_KEY="your-openai-key" --app contentfactory
+fly secrets set NVIDIA_API_KEY="your-new-nvidia-key" --app contentfactory
 fly deploy --app contentfactory
 ```
 

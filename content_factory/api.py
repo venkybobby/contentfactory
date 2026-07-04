@@ -22,7 +22,7 @@ class EpisodeRequest(BaseModel):
     angle: str = Field(min_length=10, max_length=2_000)
     target_minutes: int = Field(default=8, ge=1, le=30)
     sources: list[str] = Field(default_factory=list, max_length=25)
-    provider: str = Field(default="demo", pattern=r"^(demo|openai)$")
+    provider: str = Field(default="demo", pattern=r"^(demo|openai|nvidia)$")
 
 
 class EpisodeAccepted(BaseModel):
