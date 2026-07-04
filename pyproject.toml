@@ -3,10 +3,15 @@ name = "ai-confession-content-factory"
 version = "0.2.0"
 description = "Evidence-first agentic documentary production pipeline"
 requires-python = ">=3.11"
-dependencies = ["Pillow>=10", "imageio-ffmpeg>=0.5"]
+dependencies = [
+  "Pillow>=10",
+  "imageio-ffmpeg>=0.5",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.28"]
 
 [project.scripts]
 content-factory = "content_factory.cli:main"

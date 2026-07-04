@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from .providers import editorial_provider
-from .render import ffmpeg_path, render_video, scene_cards, subtitles, synthesize_windows, wav_duration
+from .render import ffmpeg_path, render_video, scene_cards, subtitles, synthesize_voice, wav_duration
 from .workflow import ArtifactStore, CaseSpec, utc_now
 
 
@@ -61,7 +61,7 @@ def generation(ctx: PipelineContext) -> None:
     cards = scene_cards(scenes, assets / "scenes")
     narration = "\n\n".join(x["narration"] for x in scenes)
     audio = assets / "narration.wav"
-    synthesize_windows(narration, audio)
+    synthesize_voice(narration, audio)
     srt = assets / "captions.srt"
     subtitles(scenes, wav_duration(audio), srt)
     ctx.store.write("generation", {"voice": str(audio), "captions": str(srt),

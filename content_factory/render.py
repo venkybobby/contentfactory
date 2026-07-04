@@ -4,6 +4,8 @@ import base64
 import json
 import math
 import os
+import platform
+import shutil
 import subprocess
 import wave
 from pathlib import Path
@@ -54,7 +56,14 @@ def scene_cards(sections: list[dict], output: Path) -> list[Path]:
     return cards
 
 
-def synthesize_windows(text: str, output: Path) -> None:
+def synthesize_voice(text: str, output: Path) -> None:
+    if platform.system() != "Windows":
+        espeak = shutil.which("espeak-ng") or shutil.which("espeak")
+        if not espeak:
+            raise RuntimeError("A speech engine is required: install espeak-ng")
+        subprocess.run([espeak, "-v", "en-us", "-s", "145", "-w", str(output), text],
+                       check=True, capture_output=True)
+        return
     encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
     safe_path = str(output.resolve()).replace("'", "''")
     script = ("Add-Type -AssemblyName System.Speech; "

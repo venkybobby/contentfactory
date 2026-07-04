@@ -37,3 +37,16 @@ Repeat for `script_approval` and `final_approval`. `--auto-approve` exists for l
 - Provider calls are isolated; HyperGen/HeyGen, OpenAI, voice, rendering, and publishing can be replaced independently.
 
 See [docs/FACTORY_BLUEPRINT.md](docs/FACTORY_BLUEPRINT.md) and [config/channel.json](config/channel.json).
+
+## Fly.io deployment
+
+The repository includes an explicit `Dockerfile` and `fly.toml`. Create the volume once, set runtime secrets, and deploy:
+
+```powershell
+fly volumes create contentfactory_data --region ams --size 10 --app contentfactory
+fly secrets set API_TOKEN="replace-with-a-long-random-token" --app contentfactory
+fly secrets set OPENAI_API_KEY="your-openai-key" --app contentfactory
+fly deploy --app contentfactory
+```
+
+Start an episode with `POST /api/v1/episodes`, inspect it with `GET /api/v1/episodes/{case_id}`, and approve each gate with `POST /api/v1/episodes/{case_id}/approvals/{stage}`. Send `Authorization: Bearer <API_TOKEN>` on all API requests. `GET /health` is public.
