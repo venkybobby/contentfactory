@@ -10,3 +10,5 @@ tests
 .env
 *.mp4
 *.wav
+frontend/node_modules
+frontend/dist

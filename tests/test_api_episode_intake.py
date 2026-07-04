@@ -36,3 +36,13 @@ def test_episode_is_accepted(monkeypatch, tmp_path):
     })
     assert response.status_code == 202
     assert response.json()["case_id"] == "AIC-1001"
+
+
+def test_login_creates_http_only_session(monkeypatch):
+    monkeypatch.setenv("API_TOKEN", "a-secure-test-token")
+    monkeypatch.delenv("ENV", raising=False)
+    client = TestClient(app)
+    login = client.post("/api/v1/auth/session", json={"api_token": "a-secure-test-token"})
+    assert login.status_code == 204
+    assert "HttpOnly" in login.headers["set-cookie"]
+    assert client.get("/api/v1/auth/session").status_code == 200

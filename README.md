@@ -59,3 +59,5 @@ fly deploy --app contentfactory
 ```
 
 Start an episode with `POST /api/v1/episodes`, inspect it with `GET /api/v1/episodes/{case_id}`, and approve each gate with `POST /api/v1/episodes/{case_id}/approvals/{stage}`. Send `Authorization: Bearer <API_TOKEN>` on all API requests. `GET /health` is public.
+
+The production Docker image also builds the React dashboard. Open the Fly app URL, enter `API_TOKEN` once, and the backend exchanges it for an eight-hour HttpOnly session cookie. The token is not stored in browser JavaScript storage.
