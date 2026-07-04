@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import __version__
 from .workflow import CaseSpec, Factory
+from .hypergen import write_hypergen_export
 
 
 class EpisodeRequest(BaseModel):
@@ -238,6 +239,18 @@ async def episode_artifact(case_id: str, artifact: str) -> dict:
     if not path.exists():
         raise HTTPException(status_code=404, detail={"code": "ARTIFACT_NOT_READY", "message": "Artifact is not available"})
     return await asyncio.to_thread(lambda: json.loads(path.read_text(encoding="utf-8")))
+
+
+@app.get("/api/v1/episodes/{case_id}/exports/hypergen", dependencies=[Depends(authorize)])
+async def hypergen_export(case_id: str) -> FileResponse:
+    run_dir = factory_root() / "runs" / case_id
+    manifest_path, script_path = run_dir / "manifest.json", run_dir / "script.json"
+    if not manifest_path.exists() or not script_path.exists():
+        raise HTTPException(status_code=404, detail={"code": "SCRIPT_NOT_READY", "message": "Approve the script stage before exporting"})
+    manifest = await asyncio.to_thread(lambda: json.loads(manifest_path.read_text(encoding="utf-8")))
+    script = await asyncio.to_thread(lambda: json.loads(script_path.read_text(encoding="utf-8")))
+    _, markdown = await asyncio.to_thread(write_hypergen_export, run_dir, manifest["case"], script)
+    return FileResponse(markdown, media_type="text/markdown", filename=f"{case_id}-hypergen-prompt-pack.md")
 
 
 static_dir = Path(os.environ.get("STATIC_DIR", Path(__file__).parent.parent / "frontend_dist"))

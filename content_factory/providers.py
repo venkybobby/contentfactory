@@ -147,7 +147,9 @@ Sources: {json.dumps(sources, ensure_ascii=False)}"""
         if start < 0 or end <= start:
             raise RuntimeError("NVIDIA response did not contain a JSON object")
         package = json.loads(content[start:end + 1])
-        package["sources"] = [{k: source[k] for k in ("source_id", "url", "title")} for source in sources]
+        package["sources"] = [{**{k: source[k] for k in ("source_id", "url", "title")},
+                               "retrieval_status": "failed" if "Human review required" in source["excerpt"] else "retrieved"}
+                              for source in sources]
         if len(package.get("sections", [])) != len(SECTIONS):
             raise RuntimeError("NVIDIA response must contain exactly eight sections")
         return package

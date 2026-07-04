@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from .providers import editorial_provider
+from .hypergen import write_hypergen_export
 from .render import ffmpeg_path, render_video, scene_cards, subtitles, synthesize_voice, wav_duration
 from .workflow import ArtifactStore, CaseSpec, utc_now
 
@@ -38,11 +39,12 @@ def research(ctx: PipelineContext) -> None:
 
 def script(ctx: PipelineContext) -> None:
     package = ctx.store.read("editorial_package")
+    research_data = ctx.store.read("research")
     sections = package["sections"]
     words = sum(len(x["narration"].split()) for x in sections)
     ctx.store.write("script", {"title": ctx.spec.title, "sections": sections, "word_count": words,
                                "estimated_minutes": round(words / 145, 1), "claim_ids": [x["claim_id"] for x in package.get("claims", [])],
-                               "publication_blocked": ctx.provider == "demo"})
+                               "publication_blocked": ctx.provider == "demo" or any(source.get("retrieval_status") == "failed" for source in research_data["sources"])})
 
 
 def preproduction(ctx: PipelineContext) -> None:
@@ -53,6 +55,7 @@ def preproduction(ctx: PipelineContext) -> None:
                        "visual_prompt": f"Premium investigative documentary, photorealistic, dark blue shadows, warm skin tones. {item['section']}. Evidence-led visual, no visible trademarks, no fabricated documents.",
                        "asset_type": "generated scene card", "hypergen_prompt": f"16:9 cinematic documentary shot for {item['section']}; slow dolly; realistic practical location; restrained motion; no on-screen text."})
     ctx.store.write("preproduction", {"scenes": scenes, "aspect_ratio": "16:9", "resolution": "1920x1080"})
+    write_hypergen_export(ctx.store.path, asdict(ctx.spec), script_data)
 
 
 def generation(ctx: PipelineContext) -> None:
@@ -87,8 +90,9 @@ def qa(ctx: PipelineContext) -> None:
               "audio_exists": Path(generation_data["voice"]).exists(),
               "all_assets_labeled": len(generation_data["asset_labels"]) == len(generation_data["scene_assets"]),
               "claims_have_sources": not research_data["orphan_claims"],
-              "facts_publishable": ctx.provider != "demo" and bool(research_data["sources"])}
-    ctx.store.write("qa", {"checks": checks, "passed_for_preview": all(v for k, v in checks.items() if k != "facts_publishable"),
+              "sources_retrieved": bool(research_data["sources"]) and all(source.get("retrieval_status", "retrieved") == "retrieved" for source in research_data["sources"]),
+              "facts_publishable": ctx.provider != "demo" and bool(research_data["sources"]) and all(source.get("retrieval_status", "retrieved") == "retrieved" for source in research_data["sources"])}
+    ctx.store.write("qa", {"checks": checks, "passed_for_preview": all(v for k, v in checks.items() if k not in {"facts_publishable", "sources_retrieved"}),
                            "passed_for_publication": all(checks.values()), "review_required": True})
 
 

@@ -100,6 +100,7 @@ function EpisodeDetail({ episode }) {
     <div className="stage-list">{STAGES.map(stage => <div key={stage}><span>{stage.replaceAll('_',' ')}</span><StatusPill value={episode.stages[stage]} /></div>)}</div>
     <div className="artifact-tabs">{ARTIFACTS.map(name => <button key={name} onClick={() => inspect(name)} className={artifact === name ? 'active' : ''}>{name}</button>)}</div>
     {content && <pre>{JSON.stringify(content, null, 2)}</pre>}
+    {['complete'].includes(episode.stages.script) && <a className="video-link" href={`/api/v1/episodes/${episode.case.case_id}/exports/hypergen`} target="_blank">Download HyperGen prompt pack ↗</a>}
     {episode.video_ready && <a className="video-link" href={`/api/v1/episodes/${episode.case.case_id}/video`} target="_blank">Open final video ↗</a>}
   </aside>
 }
