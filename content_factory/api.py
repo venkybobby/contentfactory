@@ -51,6 +51,8 @@ def factory_root() -> Path:
 async def authorize(authorization: str | None = Header(default=None)) -> None:
     expected = os.environ.get("API_TOKEN")
     if not expected:
+        if os.environ.get("ENV") == "production":
+            raise HTTPException(status_code=503, detail={"code": "API_NOT_CONFIGURED", "message": "API_TOKEN is not configured"})
         return
     supplied = authorization.removeprefix("Bearer ") if authorization else ""
     if not secrets.compare_digest(supplied, expected):

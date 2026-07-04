@@ -7,6 +7,7 @@ primary_region = "ams"
 [env]
   PORT = "8080"
   CONTENT_FACTORY_ROOT = "/data"
+  ENV = "production"
 
 [mounts]
   source = "contentfactory_data"

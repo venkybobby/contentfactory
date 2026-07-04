@@ -18,6 +18,13 @@ def test_episode_requires_token_when_configured(monkeypatch):
     assert response.status_code == 401
 
 
+def test_production_api_is_closed_without_token(monkeypatch):
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    response = TestClient(app).get("/api/v1/episodes/AIC-1000")
+    assert response.status_code == 503
+
+
 def test_episode_is_accepted(monkeypatch, tmp_path):
     monkeypatch.setenv("CONTENT_FACTORY_ROOT", str(tmp_path))
     monkeypatch.delenv("API_TOKEN", raising=False)
